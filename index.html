@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Box Tag</title>
+<style>
+  :root{
+    --bg:#0f1117; --wall:#2a2f3d; --platform:#3d4459; --accent:#5eead4;
+    --it:#ff5470; --runner:#5eb1ff; --text:#e8eaf0; --muted:#8890a4;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#eef1f6; --wall:#c7cede; --platform:#aab2c8; --accent:#0d9488;
+      --it:#e11d48; --runner:#2563eb; --text:#1a1d27; --muted:#5b6172;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1117; --wall:#2a2f3d; --platform:#3d4459; --accent:#5eead4;
+    --it:#ff5470; --runner:#5eb1ff; --text:#e8eaf0; --muted:#8890a4;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overflow:hidden;height:100%;width:100%;}
+  #app{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    height:100%;width:100%;padding:10px;gap:8px;}
+  #hud{width:100%;max-width:900px;display:flex;justify-content:space-between;
+    align-items:center;font-size:13px;color:var(--muted);gap:8px;flex-wrap:wrap;}
+  #hud .status{font-weight:700;font-size:15px;letter-spacing:.02em;}
+  #hud .status.it{color:var(--it);}
+  #hud .status.runner{color:var(--runner);}
+  #wrap{position:relative;width:100%;max-width:900px;aspect-ratio:9/5;}
+  canvas{width:100%;height:100%;display:block;border-radius:12px;background:var(--bg);
+    box-shadow:0 0 0 2px var(--wall) inset, 0 10px 30px rgba(0,0,0,.35);touch-action:none;}
+  #overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:12px;background:rgba(10,11,16,.72);border-radius:12px;
+    color:#fff;text-align:center;padding:20px;overflow-y:auto;}
+  .menuScreen{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:520px;}
+  .menuScreen[hidden]{display:none;}
+  #overlay h1{margin:0;font-size:clamp(24px,5vw,36px);}
+  #overlay h2{margin:0;font-size:clamp(18px,4vw,24px);color:#fff;}
+  #overlay p{margin:0;color:#c7cbe0;font-size:14px;max-width:420px;line-height:1.5;}
+  .menuBtn{padding:12px 28px;border-radius:999px;border:none;font-weight:700;font-size:16px;cursor:pointer;
+    transition:transform .1s;}
+  .menuBtn:active{transform:scale(.96);}
+  .menuBtn.primary{background:var(--accent);color:#06241f;}
+  .menuBtn.secondary{background:#2a2f3d;color:#c7cbe0;border:1px solid #3d4459;}
+  .menuBtnRow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  #nameInput{padding:10px 14px;border-radius:8px;border:1px solid #3d4459;
+    background:#1a1d27;color:#fff;font-size:15px;width:220px;text-align:center;}
+  #joinBtn{padding:10px 22px;border-radius:999px;border:none;background:var(--accent);
+    color:#06241f;font-weight:700;font-size:15px;cursor:pointer;}
+  #joinBtn:active{transform:scale(.97);}
+  #peerList{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:400px;}
+  .chip{padding:3px 9px;border-radius:999px;background:#1a1d27;color:#c7cbe0;font-size:11px;}
+  #classRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:620px;
+    padding:4px;max-height:42vh;overflow-y:auto;}
+  .classCard{width:105px;padding:9px 6px;border-radius:12px;border:2px solid #3d4459;
+    background:#1a1d27;color:#c7cbe0;cursor:pointer;text-align:center;
+    display:flex;flex-direction:column;gap:3px;align-items:center;}
+  .classCard .icon{font-size:22px;}
+  .classCard .name{font-weight:700;font-size:13px;color:#fff;}
+  .classCard .desc{font-size:10.5px;color:#8890a4;line-height:1.3;}
+  .classCard.selected{border-color:var(--accent);background:#132622;}
+  .classCard.locked{opacity:.45;cursor:not-allowed;}
+  .classCard .ability{font-size:10px;color:var(--accent);font-weight:600;margin-top:2px;}
+  .classCard .lockNote{font-size:10px;color:#ffb454;margin-top:2px;}
+  .classTag{position:absolute;font-size:9px;padding:1px 5px;border-radius:6px;
+    background:rgba(0,0,0,.55);color:#fff;top:-30px;left:50%;transform:translateX(-50%);
+    white-space:nowrap;}
+  #xpBar{width:260px;height:8px;border-radius:999px;background:#1a1d27;overflow:hidden;}
+  #xpFill{height:100%;background:var(--accent);width:0%;}
+  #xpLabel{font-size:11px;color:#b0b3bd;}
+  #abilityStatus{font-size:12px;color:var(--muted);}
+  #toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);
+    background:#132622;color:var(--accent);padding:6px 14px;border-radius:999px;
+    font-size:12px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .3s;
+    white-space:nowrap;z-index:5;}
+  #toast.show{opacity:1;}
+  #controls{display:flex;gap:12px;width:100%;max-width:900px;justify-content:center;
+    padding:8px 12px 16px;padding-bottom:max(16px, env(safe-area-inset-bottom));}
+  .padRow{display:flex;gap:12px;align-items:center;}
+  .padBtn{width:64px;height:64px;border-radius:18px;border:1px solid var(--wall);
+    background:var(--platform);color:var(--text);font-size:24px;display:flex;
+    align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;
+    touch-action:none;position:relative;overflow:hidden;
+    box-shadow:0 4px 12px rgba(0,0,0,.25);}
+  .padBtn:active{background:var(--accent);color:#06241f;transform:scale(0.94);}
+  #btnAbility{background:#2c1f3d;width:72px;height:72px;font-size:28px;}
+  #btnAbility .cdOverlay{position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.55) var(--cd,0%),transparent 0);pointer-events:none;border-radius:18px;}
+  #btnJump{width:72px;height:72px;}
+  #hint{font-size:11px;color:var(--muted);text-align:center;padding:0 12px 8px;}
+  @media (min-width:800px){ #controls{display:none;} #hint{display:none;} }
+  @media (max-width:600px){
+    #hud{font-size:12px;padding:0 4px;}
+    .padBtn{width:60px;height:60px;font-size:22px;}
+    #btnAbility,#btnJump{width:68px;height:68px;}
+    #overlay h1{font-size:26px;}
+    .classCard{width:100px;padding:8px 6px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div id="statusText" class="status runner">Connecting…</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div id="abilityStatus"></div>
+      <div id="tagCount" style="font-size:12px;color:var(--muted)">Tags: 0</div>
+      <div id="peerCount">1 player</div>
+    </div>
+  </div>
+  <div id="wrap">
+    <canvas id="game"></canvas>
+    <div id="toast"></div>
+    <div id="overlay">
+      <div id="menuMain" class="menuScreen">
+        <h1>🏃 Box Tag</h1>
+        <p>Live multiplayer platformer tag. Open this page on multiple devices / tabs — everyone joins the same room instantly. Move with <b>WASD / arrows</b>, jump with <b>Space</b>. The glowing red player is <b>IT</b> — tag someone to pass it! Earn XP, unlock classes, and use your ability (Shift / E).</p>
+        <button id="playBtn" class="menuBtn primary">▶ Play</button>
+        <div id="peerList"></div>
+      </div>
+      <div id="menuClass" class="menuScreen" hidden>
+        <h2>Choose Your Class</h2>
+        <input id="nameInput" placeholder="Your name" maxlength="16">
+        <div id="xpLabel">XP: 0</div>
+        <div id="xpBar"><div id="xpFill"></div></div>
+        <div id="classRow"></div>
+        <div class="menuBtnRow">
+          <button id="backBtn" class="menuBtn secondary">← Back</button>
+          <button id="joinBtn" class="menuBtn primary">Enter the room →</button>
+        </div>
+      </div>
+      <div id="toast"></div>
+    </div>
+  </div>
+  <div id="controls">
+    <div class="padRow">
+      <div class="padBtn" id="btnLeft">◀</div>
+      <div class="padBtn" id="btnJump">▲</div>
+      <div class="padBtn" id="btnRight">▶</div>
+      <div class="padBtn" id="btnAbility">★<div class="cdOverlay"></div></div>
+    </div>
+  </div>
+  <div id="hint">Arrow keys / WASD to move · Space to jump · Shift/E or ★ for your class ability</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- World ----------
+  const W = 900, H = 500;
+  const GROUND_Y = H - 30;
+  const GRAVITY = 0.62, MOVE_ACC = 0.85, MAX_VX = 5.2, FRICTION = 0.82, JUMP_V = -12.6;
+  const PLAYER_R = 16;
+  const TAG_DIST = PLAYER_R * 2 + 4;
+  const TAG_COOLDOWN_MS = 1200;
+
+  // ---------- Classes ----------
+  const CLASSES = {
+    speedster: { icon:"💨", label:"Speedster", moveMult:1.35, jumpMult:0.85, immunityMs:900,
+      unlockXp:0, kind:"dash", abilityName:"Dash", abilityDesc:"Burst of speed",
+      cooldownMs:3800 },
+    jumper:    { icon:"🦘", label:"Jumper",    moveMult:0.82, jumpMult:1.32, immunityMs:900,
+      unlockXp:0, kind:"doublejump", abilityName:"Double Jump", abilityDesc:"Extra mid-air jump",
+      cooldownMs:0 },
+    tank:      { icon:"🛡️", label:"Tank",      moveMult:0.92, jumpMult:0.92, immunityMs:1600,
+      unlockXp:40, kind:"shield", abilityName:"Shield", abilityDesc:"Brief tag immunity",
+      cooldownMs:8500, shieldMs:2000 },
+    phantom:   { icon:"👻", label:"Phantom",   moveMult:1.05, jumpMult:1.0,  immunityMs:750,
+      unlockXp:100, kind:"phase", abilityName:"Phase", abilityDesc:"Invisible + immune",
+      cooldownMs:6500, phaseMs:1600 },
+    glider:    { icon:"🪂", label:"Glider",    moveMult:0.9,  jumpMult:1.18, immunityMs:900,
+      unlockXp:160, kind:"glide", abilityName:"Glide", abilityDesc:"Slow floaty fall",
+      cooldownMs:5500, glideMs:3200 },
+    bomber:    { icon:"💣", label:"Bomber",    moveMult:1.0,  jumpMult:0.9,  immunityMs:900,
+      unlockXp:240, kind:"blast", abilityName:"Blast", abilityDesc:"Knockback burst",
+      cooldownMs:7500, blastRadius:140, blastForce:17 },
+    warper:    { icon:"🔮", label:"Warper",    moveMult:1.02, jumpMult:1.0,  immunityMs:700,
+      unlockXp:320, kind:"blink", abilityName:"Blink", abilityDesc:"Teleport forward",
+      cooldownMs:4800, blinkDist:140 },
+    // New classes
+    clinger:   { icon:"🧗", label:"Clinger",   moveMult:0.95, jumpMult:1.05, immunityMs:850,
+      unlockXp:180, kind:"cling", abilityName:"Wall Cling", abilityDesc:"Stick to walls + jump",
+      cooldownMs:5000, clingMs:2200 },
+    magnet:    { icon:"🧲", label:"Magnet",    moveMult:0.98, jumpMult:0.95, immunityMs:900,
+      unlockXp:280, kind:"magnet", abilityName:"Attract", abilityDesc:"Pull nearby players",
+      cooldownMs:7000, magnetRadius:160, magnetForce:9 },
+    frost:     { icon:"❄️", label:"Frost",     moveMult:0.96, jumpMult:1.0,  immunityMs:950,
+      unlockXp:360, kind:"frost", abilityName:"Freeze", abilityDesc:"Slow nearby players",
+      cooldownMs:8000, frostRadius:150, frostMs:2200 },
+    pounder:   { icon:"🔨", label:"Pounder",   moveMult:0.9,  jumpMult:0.95, immunityMs:1000,
+      unlockXp:450, kind:"pound", abilityName:"Ground Slam", abilityDesc:"Dive + shockwave",
+      cooldownMs:6500, poundForce:14, poundRadius:120 },
+  };
+  const CLASS_ORDER = ["speedster","jumper","tank","phantom","glider","bomber","warper","clinger","magnet","frost","pounder"];
+  const DEFAULT_CLASS = "speedster";
+  const XP_PER_TAG = 25;
+  const XP_PER_TICK = 2;
+  const SURVIVAL_TICK_MS = 3000;
+
+  // ---------- Progression (localStorage) ----------
+  let progress = { xp: 0, gamesPlayed: 0, tags: 0 };
+  try {
+    const saved = localStorage.getItem("boxtag_progress");
+    if (saved) progress = { ...progress, ...JSON.parse(saved) };
+  } catch {}
+  function saveProgress(){
+    try { localStorage.setItem("boxtag_progress", JSON.stringify(progress)); } catch {}
+  }
+
+  // ---------- Simple Web Audio SFX ----------
+  let audioCtx = null;
+  function ensureAudio(){
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  function playTone(freq, dur, type="sine", vol=0.12, slide=0){
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (slide) o.frequency.linearRampToValueAtTime(freq + slide, ctx.currentTime + dur);
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + dur);
+  }
+  function sfxJump(){ playTone(220, 0.12, "square", 0.06, 80); }
+  function sfxTag(){ playTone(140, 0.18, "sawtooth", 0.14, -60); playTone(280, 0.1, "sine", 0.08); }
+  function sfxAbility(){ playTone(380, 0.15, "triangle", 0.1, 120); }
+  function sfxIt(){ playTone(100, 0.3, "sawtooth", 0.12, 40); }
+  function sfxLand(){ playTone(90, 0.08, "sine", 0.05); }
+
+  function isUnlocked(name){ return progress.xp >= CLASSES[name].unlockXp; }
+  function nextLockedClass(){
+    for (const name of CLASS_ORDER){ if (!isUnlocked(name)) return name; }
+    return null;
+  }
+
+  let toastTimer = null;
+  function showToast(text){
+    const el = document.getElementById("toast");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> el.classList.remove("show"), 2600);
+  }
+
+  function addXp(amount){
+    const before = CLASS_ORDER.filter(isUnlocked);
+    progress.xp = Math.round((progress.xp + amount) * 10) / 10;
+    saveProgress();
+    const after = CLASS_ORDER.filter(isUnlocked);
+    const newlyUnlocked = after.filter(n => !before.includes(n));
+    newlyUnlocked.forEach(n => showToast("🔓 " + CLASSES[n].label + " unlocked!"));
+    updateXpUi();
+    renderClassCards();
+  }
+
+  function updateXpUi(){
+    const label = document.getElementById("xpLabel");
+    const fill = document.getElementById("xpFill");
+    if (!label || !fill) return;
+    const next = nextLockedClass();
+    if (next){
+      const prevGate = CLASS_ORDER.filter(isUnlocked).reduce((m,n)=>Math.max(m, CLASSES[n].unlockXp), 0);
+      const span = Math.max(1, CLASSES[next].unlockXp - prevGate);
+      const pct = Math.max(0, Math.min(100, ((progress.xp - prevGate) / span) * 100));
+      label.textContent = `XP: ${progress.xp} — ${CLASSES[next].unlockXp - progress.xp} to unlock ${CLASSES[next].label}`;
+      fill.style.width = pct + "%";
+    } else {
+      label.textContent = `XP: ${progress.xp} — all classes unlocked!`;
+      fill.style.width = "100%";
+    }
+  }
+
+  const platforms = [
+    {x:0, y:GROUND_Y, w:W, h:30},
+    {x:0, y:0, w:16, h:H},
+    {x:W-16, y:0, w:16, h:H},
+    {x:0, y:0, w:W, h:16},
+    {x:120, y:390, w:170, h:18},
+    {x:610, y:390, w:170, h:18},
+    {x:360, y:320, w:180, h:18},
+    {x:60,  y:260, w:140, h:18},
+    {x:700, y:260, w:140, h:18},
+    {x:230, y:190, w:150, h:18},
+    {x:520, y:190, w:150, h:18},
+    {x:380, y:120, w:140, h:18},
+  ];
+
+  const COLORS = ["#5eb1ff","#ffb454","#c792ea","#7ee787","#ff7ab6","#ffd166","#89ddff","#f28fad"];
+  function colorFor(id){
+    let h = 0;
+    for (let i=0;i<id.length;i++){ h = (h*31 + id.charCodeAt(i)) >>> 0; }
+    return COLORS[h % COLORS.length];
+  }
+
+  // ---------- Local player state ----------
+  const myId = "p_" + Math.random().toString(36).slice(2, 10);
+  let myName = "";
+  let myClass = DEFAULT_CLASS;
+  let myColor = colorFor(myId);
+  const me = {
+    x: 80 + Math.random()*60, y: 100, vx: 0, vy: 0, onGround: false, facing: 1
+  };
+  let iAmIt = false;
+  let itHolder = null;
+  let lastTagAt = 0;
+  let myImmuneUntil = 0;
+  let joined = false;
+  let pendingJoin = false;
+
+  // ability runtime state
+  const ability = {
+    cooldownUntil: 0, dashUntil: 0, dashVx: 0, doubleJumpUsed: false,
+    phaseUntil: 0, glideUntil: 0,
+    clingUntil: 0, onWall: false, wallDir: 0,
+    slowedUntil: 0, poundActive: false
+  };
+  let survivalTimer = null;
+
+  // remote players keyed by id
+  const remotes = new Map();
+
+  // ---------- VFX System ----------
+  const particles = [];
+  const MAX_PARTICLES = 500;
+  let screenShake = 0;
+  const dashTrail = [];
+
+  // ---------- Wind System ----------
+  const wind = {
+    dirX: 0.4, dirY: 0,
+    baseStrength: 0.15,
+    gustStrength: 0,
+    gustTimer: 2000 + Math.random() * 3000,
+    gustUntil: 0,
+    gustDirX: 0,
+    leafSeeds: [],
+  };
+  // floating ambient leaves
+  const ambientLeaves = [];
+  function initAmbientLeaves(){
+    for (let i = 0; i < 12; i++){
+      ambientLeaves.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: 0.3 + Math.random() * 0.4, vy: 0,
+        phase: Math.random() * Math.PI * 2,
+        size: 2 + Math.random() * 2,
+        color: ['#7ee787','#ffd166','#ff7ab6','#c792ea','#89ddff'][Math.floor(Math.random()*5)],
+      });
+    }
+  }
+  initAmbientLeaves();
+
+  function updateWind(dt){
+    wind.gustTimer -= dt;
+    if (wind.gustTimer <= 0){
+      wind.gustTimer = 3000 + Math.random() * 5000;
+      wind.gustUntil = Date.now() + 1200 + Math.random() * 800;
+      wind.gustStrength = 0.6 + Math.random() * 0.9;
+      wind.gustDirX = 0.3 + Math.random() * 0.5;
+      // spawn gust streak burst
+      for (let i = 0; i < 20; i++){
+        const y = Math.random() * H;
+        addParticle({
+          x: -30 + Math.random() * 60, y: y,
+          vx: 3 + Math.random() * 5, vy: (Math.random() - 0.5) * 1.5,
+          life: 700 + Math.random() * 500,
+          color: 'rgba(255,255,255,0.18)',
+          size: 1 + Math.random() * 2,
+          type: 'streak', gravity: 0, drag: 1.0, windAffected: false,
+        });
+      }
+    }
+    if (Date.now() > wind.gustUntil){
+      wind.gustStrength *= 0.97;
+    }
+    // update ambient leaves
+    const wf = getWindForce();
+    for (const l of ambientLeaves){
+      l.x += l.vx + wf.x * 2;
+      l.y += Math.sin(Date.now() * 0.002 + l.phase) * 0.6 + wf.y * 0.5;
+      if (l.x > W + 20) l.x = -20;
+      if (l.x < -30) l.x = W + 10;
+      if (l.y < -10) l.y = H - 10;
+      if (l.y > H + 10) l.y = 10;
+    }
+  }
+
+  function getWindForce(){
+    return {
+      x: wind.dirX * (wind.baseStrength + wind.gustStrength),
+      y: wind.dirY * (wind.baseStrength + wind.gustStrength) + wind.gustStrength * 0.1,
+    };
+  }
+
+  function spawnAmbientWind(){
+    const count = 1 + Math.floor(wind.gustStrength * 3);
+    for (let i = 0; i < count; i++){
+      if (Math.random() < 0.35){
+        const y = Math.random() * H;
+        addParticle({
+          x: -20, y: y,
+          vx: 1.5 + Math.random() * 3 + wind.gustStrength * 3,
+          vy: (Math.random() - 0.5) * 0.8,
+          life: 600 + Math.random() * 500,
+          color: 'rgba(255,255,255,0.12)',
+          size: 1 + Math.random() * 1.5,
+          type: 'streak', gravity: 0, drag: 1.0, windAffected: false,
+        });
+      }
+    }
+    // dust motes
+    if (Math.random() < 0.15){
+      addParticle({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: 0.2 + Math.random() * 0.4, vy: (Math.random() - 0.5) * 0.2,
+        life: 2000 + Math.random() * 2000,
+        color: 'rgba(255,255,255,0.06)',
+        size: 1 + Math.random(),
+        type: 'circle', gravity: 0, drag: 1.0, windAffected: false,
+      });
+    }
+  }
+
+  function spawnWindTrail(x, y, vx, facing, color){
+    if (Math.abs(vx) > 2.5 && Math.random() < 0.5){
+      const speed = Math.min(Math.abs(vx), 8);
+      for (let i = 0; i < 2; i++){
+        addParticle({
+          x: x - facing * (PLAYER_R + i * 4) + (Math.random() - 0.5) * 8,
+          y: y + (Math.random() - 0.5) * PLAYER_R,
+          vx: -facing * (0.5 + Math.random() * speed * 0.4),
+          vy: (Math.random() - 0.5) * 1.5,
+          life: 250 + Math.random() * 200,
+          color: color,
+          size: 1 + Math.random() * 1.5,
+          type: 'streak', gravity: 0.02, drag: 0.96,
+        });
+      }
+    }
+  }
+
+  function drawAmbientLeaves(){
+    const wf = getWindForce();
+    for (const l of ambientLeaves){
+      const sway = Math.sin(Date.now() * 0.003 + l.phase);
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = l.color;
+      ctx.save();
+      ctx.translate(l.x, l.y);
+      ctx.rotate(sway * 0.5 + wf.x);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, l.size * 1.6, l.size * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function addParticle(o){
+    if (particles.length >= MAX_PARTICLES) particles.shift();
+    particles.push({
+      x:o.x, y:o.y, vx:o.vx||0, vy:o.vy||0,
+      life:o.life||500, maxLife:o.life||500,
+      color:o.color||"#5eead4", size:o.size||3,
+      type:o.type||"circle", gravity:o.gravity||0,
+      drag:o.drag||0.95, expand:o.expand||0,
+      windAffected: o.windAffected !== false,
+    });
+  }
+
+  function spawnDashVFX(x, y, color, facing){
+    for (let i=0;i<14;i++){
+      const a = Math.PI + (Math.random()-0.5)*1.4;
+      const sp = 2 + Math.random()*5;
+      addParticle({
+        x: x - facing*8 + (Math.random()-0.5)*16,
+        y: y + (Math.random()-0.5)*16,
+        vx: Math.cos(a)*sp*facing, vy: Math.sin(a)*sp - 1,
+        life: 350+Math.random()*250, color:color, size:2+Math.random()*3,
+        type:"streak", gravity:0.08,
+      });
+    }
+    // wind gust burst from dash
+    for (let i=0;i<10;i++){
+      const a = Math.PI + (Math.random()-0.5)*1.0;
+      const sp = 3 + Math.random()*4;
+      addParticle({
+        x: x - facing*6, y: y + (Math.random()-0.5)*20,
+        vx: Math.cos(a)*sp*facing, vy: Math.sin(a)*sp - 0.5,
+        life: 450+Math.random()*300, color:'rgba(255,255,255,0.22)',
+        size:1+Math.random()*2, type:"streak", gravity:0.03,
+      });
+    }
+    // burst ring
+    addParticle({ x:x, y:y, life:300, color:color, type:"ring", expand:60, size:3 });
+    // wind displacement ring
+    addParticle({ x:x, y:y, life:400, color:'rgba(255,255,255,0.15)', type:"ring", expand:90, size:2 });
+    screenShake = Math.max(screenShake, 4);
+  }
+
+  function spawnJumpVFX(x, y, color){
+    for (let i=0;i<16;i++){
+      const a = (i/16)*Math.PI*2;
+      const sp = 3 + Math.random()*2;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 1,
+        life:500, color:color, size:3, type:"circle", gravity:0.15,
+      });
+    }
+    // air displacement ring expanding downward
+    addParticle({ x:x, y:y, life:400, color:color, type:"ring", expand:70, size:4 });
+    // wind puff — light streaks kicked outward
+    for (let i=0;i<8;i++){
+      const a = (i/8)*Math.PI*2;
+      const sp = 1.5 + Math.random()*2;
+      addParticle({
+        x:x, y:y+PLAYER_R*0.5, vx:Math.cos(a)*sp, vy:Math.abs(Math.sin(a))*sp*0.5,
+        life:400, color:'rgba(255,255,255,0.18)', size:1+Math.random()*1.5,
+        type:"streak", gravity:0.05,
+      });
+    }
+  }
+
+  function spawnShieldVFX(x, y){
+    for (let i=0;i<24;i++){
+      const a = (i/24)*Math.PI*2;
+      const sp = 1 + Math.random()*2.5;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:600, color:"#5eead4", size:3, type:"circle", gravity:0,
+      });
+    }
+    // wind swirl — streaks spiraling outward
+    for (let i=0;i<12;i++){
+      const a = (i/12)*Math.PI*2;
+      const sp = 2 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:500, color:'rgba(94,234,212,0.3)', size:1+Math.random()*1.5,
+        type:"streak", gravity:0,
+      });
+    }
+    addParticle({ x:x, y:y, life:500, color:"#5eead4", type:"ring", expand:55, size:3 });
+    addParticle({ x:x, y:y, life:700, color:"#5eead4", type:"ring", expand:80, size:2 });
+    screenShake = Math.max(screenShake, 3);
+  }
+
+  function spawnTagVFX(x, y){
+    for (let i=0;i<22;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 2 + Math.random()*6;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:500+Math.random()*300, color:"#ff5470", size:2+Math.random()*4,
+        type:"circle", gravity:0.1,
+      });
+    }
+    // wind shockwave — fast streaks radiating outward
+    for (let i=0;i<14;i++){
+      const a = (i/14)*Math.PI*2;
+      const sp = 4 + Math.random()*5;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:400, color:'rgba(255,84,112,0.25)', size:1+Math.random()*2,
+        type:"streak", gravity:0.02,
+      });
+    }
+    addParticle({ x:x, y:y, life:400, color:"#ff5470", type:"ring", expand:50, size:4 });
+    addParticle({ x:x, y:y, life:600, color:'rgba(255,255,255,0.15)', type:"ring", expand:100, size:2 });
+    screenShake = Math.max(screenShake, 8);
+  }
+
+  function spawnItVFX(x, y){
+    for (let i=0;i<16;i++){
+      const a = (i/16)*Math.PI*2;
+      const sp = 2 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 1,
+        life:600, color:"#ff5470", size:3, type:"circle", gravity:0.05,
+      });
+    }
+    // wind vortex — red streaks spiraling
+    for (let i=0;i<10;i++){
+      const a = (i/10)*Math.PI*2;
+      const sp = 3 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:500, color:'rgba(255,84,112,0.3)', size:1+Math.random()*1.5,
+        type:"streak", gravity:0,
+      });
+    }
+    addParticle({ x:x, y:y, life:500, color:"#ff5470", type:"ring", expand:60, size:3 });
+    addParticle({ x:x, y:y, life:700, color:'rgba(255,255,255,0.12)', type:"ring", expand:90, size:2 });
+    screenShake = Math.max(screenShake, 5);
+  }
+
+  function spawnLandDust(x, y){
+    for (let i=0;i<6;i++){
+      addParticle({
+        x:x + (Math.random()-0.5)*20, y:y + PLAYER_R,
+        vx:(Math.random()-0.5)*3, vy:-0.5-Math.random()*1.5,
+        life:300, color:"#8890a4", size:2, type:"circle", gravity:0.1,
+      });
+    }
+    // impact wind ring — air pushed outward on landing
+    addParticle({ x:x, y:y+PLAYER_R, life:350, color:'rgba(255,255,255,0.15)', type:"ring", expand:50, size:2 });
+  }
+
+  function spawnJumpDust(x, y){
+    for (let i=0;i<5;i++){
+      addParticle({
+        x:x + (Math.random()-0.5)*16, y:y + PLAYER_R,
+        vx:(Math.random()-0.5)*3, vy:0.5+Math.random(),
+        life:250, color:"#8890a4", size:2, type:"circle", gravity:0.1,
+      });
+    }
+  }
+
+  // ---- New ability VFX ----
+  function spawnPhaseVFX(x, y){
+    for (let i=0;i<20;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 1 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:600, color:'rgba(200,200,255,0.4)', size:2+Math.random()*2,
+        type:"circle", gravity:0,
+      });
+    }
+    // ghostly streaks spiraling outward
+    for (let i=0;i<12;i++){
+      const a = (i/12)*Math.PI*2;
+      const sp = 2 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:500, color:'rgba(200,200,255,0.3)', size:1+Math.random()*1.5,
+        type:"streak", gravity:0,
+      });
+    }
+    addParticle({ x:x, y:y, life:500, color:'rgba(200,200,255,0.4)', type:"ring", expand:55, size:3 });
+    addParticle({ x:x, y:y, life:700, color:'rgba(200,200,255,0.2)', type:"ring", expand:80, size:2 });
+  }
+
+  function spawnGlideVFX(x, y){
+    for (let i=0;i<10;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 1 + Math.random()*2;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 0.5,
+        life:500, color:'rgba(255,210,120,0.35)', size:2,
+        type:"circle", gravity:0.02,
+      });
+    }
+    // upward wind streaks
+    for (let i=0;i<8;i++){
+      addParticle({
+        x:x + (Math.random()-0.5)*24, y:y + PLAYER_R,
+        vx:(Math.random()-0.5)*1, vy:-1-Math.random()*2,
+        life:400, color:'rgba(255,255,255,0.18)', size:1+Math.random(),
+        type:"streak", gravity:-0.05,
+      });
+    }
+    addParticle({ x:x, y:y, life:400, color:'rgba(255,210,120,0.3)', type:"ring", expand:50, size:2 });
+  }
+
+  function spawnBlastVFX(x, y){
+    // big explosion ring
+    addParticle({ x:x, y:y, life:500, color:'#ffb454', type:"ring", expand:120, size:4 });
+    addParticle({ x:x, y:y, life:700, color:'rgba(255,180,84,0.2)', type:"ring", expand:160, size:2 });
+    // radial explosion particles
+    for (let i=0;i<28;i++){
+      const a = (i/28)*Math.PI*2;
+      const sp = 4 + Math.random()*6;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:500+Math.random()*300, color:'#ffb454', size:2+Math.random()*3,
+        type:"circle", gravity:0.1,
+      });
+    }
+    // wind shockwave streaks
+    for (let i=0;i<16;i++){
+      const a = (i/16)*Math.PI*2;
+      const sp = 6 + Math.random()*5;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:400, color:'rgba(255,255,255,0.25)', size:1+Math.random()*2,
+        type:"streak", gravity:0.03,
+      });
+    }
+    screenShake = Math.max(screenShake, 10);
+  }
+
+  function spawnBlinkVFX(x, y, x2, y2){
+    // vanish particles at old position
+    for (let i=0;i<14;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 1 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:400, color:'rgba(167,139,250,0.4)', size:2+Math.random()*2,
+        type:"circle", gravity:0,
+      });
+    }
+    addParticle({ x:x, y:y, life:350, color:'rgba(167,139,250,0.4)', type:"ring", expand:45, size:3 });
+    // appear particles at new position
+    for (let i=0;i<14;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 1 + Math.random()*3;
+      addParticle({
+        x:x2, y:y2, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:400, color:'rgba(167,139,250,0.4)', size:2+Math.random()*2,
+        type:"circle", gravity:0,
+      });
+    }
+    addParticle({ x:x2, y:y2, life:350, color:'rgba(167,139,250,0.4)', type:"ring", expand:45, size:3 });
+  }
+
+  function spawnClingVFX(x, y){
+    for (let i=0;i<12;i++){
+      addParticle({
+        x:x + (Math.random()-0.5)*20, y:y + (Math.random()-0.5)*20,
+        vx:(Math.random()-0.5)*2, vy:(Math.random()-0.5)*2,
+        life:500, color:'#7ee787', size:2+Math.random()*2, type:"circle", gravity:0.05
+      });
+    }
+    addParticle({ x:x, y:y, life:400, color:'#7ee787', type:"ring", expand:40, size:2 });
+  }
+
+  function spawnMagnetVFX(x, y){
+    for (let i=0;i<18;i++){
+      const a = (i/18)*Math.PI*2;
+      const sp = 3 + Math.random()*3;
+      addParticle({
+        x:x + Math.cos(a)*40, y:y + Math.sin(a)*40,
+        vx:-Math.cos(a)*sp, vy:-Math.sin(a)*sp,
+        life:450, color:'#ff7ab6', size:2, type:"streak", gravity:0
+      });
+    }
+    addParticle({ x:x, y:y, life:500, color:'#ff7ab6', type:"ring", expand:90, size:3 });
+  }
+
+  function spawnFrostVFX(x, y){
+    for (let i=0;i<22;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 1 + Math.random()*3;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+        life:700, color:'rgba(137,221,255,0.6)', size:2+Math.random()*2,
+        type:"circle", gravity:0.02
+      });
+    }
+    addParticle({ x:x, y:y, life:600, color:'rgba(137,221,255,0.5)', type:"ring", expand:110, size:3 });
+    addParticle({ x:x, y:y, life:800, color:'rgba(200,240,255,0.25)', type:"ring", expand:150, size:2 });
+  }
+
+  function spawnPoundStartVFX(x, y){
+    for (let i=0;i<10;i++){
+      addParticle({
+        x:x, y:y, vx:(Math.random()-0.5)*2, vy:-1-Math.random()*2,
+        life:300, color:'#ffb454', size:2, type:"circle", gravity:0.1
+      });
+    }
+  }
+
+  function spawnPoundLandVFX(x, y){
+    addParticle({ x:x, y:y, life:450, color:'#ffb454', type:"ring", expand:100, size:4 });
+    addParticle({ x:x, y:y, life:600, color:'rgba(255,180,84,0.25)', type:"ring", expand:140, size:2 });
+    for (let i=0;i<20;i++){
+      const a = (i/20)*Math.PI*2;
+      const sp = 3 + Math.random()*5;
+      addParticle({
+        x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 1,
+        life:400, color:'#ffb454', size:2+Math.random()*2, type:"circle", gravity:0.12
+      });
+    }
+    screenShake = Math.max(screenShake, 9);
+  }
+
+  function updateParticles(dt){
+    const wf = getWindForce();
+    for (let i=particles.length-1; i>=0; i--){
+      const p = particles[i];
+      p.life -= dt;
+      if (p.life <= 0){ particles.splice(i,1); continue; }
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      // wind affects particles
+      if (p.windAffected){
+        p.vx += wf.x * 0.08;
+        p.vy += wf.y * 0.04;
+      }
+      p.vx *= p.drag;
+      p.vy *= p.drag;
+    }
+    screenShake *= 0.85;
+    if (screenShake < 0.1) screenShake = 0;
+    // dash trail cleanup
+    const now = Date.now();
+    while (dashTrail.length > 0 && now - dashTrail[0].t > 300) dashTrail.shift();
+  }
+
+  function drawParticles(){
+    for (const p of particles){
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.globalAlpha = alpha;
+      if (p.type === "ring"){
+        const prog = 1 - (p.life / p.maxLife);
+        const r = Math.max(0.5, p.expand * prog);
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(0.5, p.size * alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+        ctx.stroke();
+      } else if (p.type === "streak"){
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(0.5, p.size * alpha);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.vx*3, p.y - p.vy*3);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, p.size * alpha), 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawDashTrail(){
+    const now = Date.now();
+    for (let i=0; i<dashTrail.length; i++){
+      const t = dashTrail[i];
+      const age = (now - t.t) / 300;
+      const alpha = (1 - age) * 0.35;
+      const r = Math.max(1, PLAYER_R * (1 - age * 0.6));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = t.color;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- Canvas setup ----------
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  function fitCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr * (rect.width/W), 0, 0, dpr * (rect.height/H), 0, 0);
+  }
+  window.addEventListener("resize", fitCanvas);
+
+  // ---------- Input ----------
+  const keys = { left:false, right:false, jump:false };
+  window.addEventListener("keydown", (e)=>{
+    if (["ArrowLeft","a","A"].includes(e.key)) keys.left = true;
+    if (["ArrowRight","d","D"].includes(e.key)) keys.right = true;
+    if ([" ","ArrowUp","w","W"].includes(e.key)) { keys.jump = true; e.preventDefault(); }
+    if (["Shift","e","E"].includes(e.key)) { triggerAbility(); }
+  });
+  window.addEventListener("keyup", (e)=>{
+    if (["ArrowLeft","a","A"].includes(e.key)) keys.left = false;
+    if (["ArrowRight","d","D"].includes(e.key)) keys.right = false;
+    if ([" ","ArrowUp","w","W"].includes(e.key)) keys.jump = false;
+  });
+  function bindPad(id, key){
+    const el = document.getElementById(id);
+    const on = (e)=>{ keys[key]=true; e.preventDefault(); };
+    const off = (e)=>{ keys[key]=false; e.preventDefault(); };
+    el.addEventListener("touchstart", on, {passive:false});
+    el.addEventListener("touchend", off, {passive:false});
+    el.addEventListener("touchcancel", off, {passive:false});
+    el.addEventListener("mousedown", on);
+    el.addEventListener("mouseup", off);
+    el.addEventListener("mouseleave", off);
+  }
+  bindPad("btnLeft","left"); bindPad("btnRight","right"); bindPad("btnJump","jump");
+  (function(){
+    const el = document.getElementById("btnAbility");
+    const fire = (e)=>{ e.preventDefault(); triggerAbility(); };
+    el.addEventListener("touchstart", fire, {passive:false});
+    el.addEventListener("mousedown", fire);
+  })();
+
+  function triggerAbility(){
+    if (!joined) return;
+    const cls = CLASSES[myClass] || CLASSES[DEFAULT_CLASS];
+    const now = Date.now();
+    if (cls.kind === "dash"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      ability.dashUntil = now + 220;
+      ability.dashVx = me.facing * 9;
+      spawnDashVFX(me.x, me.y, myColor, me.facing);
+      sendVfx("dash", me.x, me.y, myColor, me.facing);
+      sfxAbility();
+    } else if (cls.kind === "doublejump"){
+      if (me.onGround || ability.doubleJumpUsed) return;
+      ability.doubleJumpUsed = true;
+      me.vy = JUMP_V * 0.92 * cls.jumpMult;
+      spawnJumpVFX(me.x, me.y, myColor);
+      sendVfx("jump", me.x, me.y, myColor);
+      sfxJump();
+    } else if (cls.kind === "shield"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      myImmuneUntil = Math.max(myImmuneUntil, now + cls.shieldMs);
+      spawnShieldVFX(me.x, me.y);
+      sendVfx("shield", me.x, me.y);
+      sfxAbility();
+    } else if (cls.kind === "phase"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      myImmuneUntil = Math.max(myImmuneUntil, now + cls.phaseMs);
+      ability.phaseUntil = now + cls.phaseMs;
+      spawnPhaseVFX(me.x, me.y);
+      sendVfx("phase", me.x, me.y);
+      sfxAbility();
+    } else if (cls.kind === "glide"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      ability.glideUntil = now + cls.glideMs;
+      spawnGlideVFX(me.x, me.y);
+      sendVfx("glide", me.x, me.y);
+      sfxAbility();
+    } else if (cls.kind === "blast"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      spawnBlastVFX(me.x, me.y);
+      sendVfx("blast", me.x, me.y);
+      me.vy = Math.min(me.vy, -4);
+      sfxAbility();
+    } else if (cls.kind === "blink"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      const oldX = me.x, oldY = me.y;
+      me.x += me.facing * cls.blinkDist;
+      me.x = Math.max(PLAYER_R+16, Math.min(W-PLAYER_R-16, me.x));
+      aabbResolve(me);
+      spawnBlinkVFX(oldX, oldY, me.x, me.y);
+      sendVfx("blink", oldX, oldY, myColor, me.facing, me.x, me.y);
+      broadcastPresence();
+      sfxAbility();
+    } else if (cls.kind === "cling"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      ability.clingUntil = now + cls.clingMs;
+      spawnClingVFX(me.x, me.y);
+      sendVfx("cling", me.x, me.y);
+      sfxAbility();
+    } else if (cls.kind === "magnet"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      spawnMagnetVFX(me.x, me.y);
+      sendVfx("magnet", me.x, me.y);
+      // Local pull is applied on remote clients via VFX; also slight self-stabilization
+      sfxAbility();
+    } else if (cls.kind === "frost"){
+      if (now < ability.cooldownUntil) return;
+      ability.cooldownUntil = now + cls.cooldownMs;
+      spawnFrostVFX(me.x, me.y);
+      sendVfx("frost", me.x, me.y);
+      sfxAbility();
+    } else if (cls.kind === "pound"){
+      if (now < ability.cooldownUntil) return;
+      if (me.onGround) return; // must be airborne
+      ability.cooldownUntil = now + cls.cooldownMs;
+      ability.poundActive = true;
+      me.vy = 14; // fast dive
+      spawnPoundStartVFX(me.x, me.y);
+      sendVfx("poundStart", me.x, me.y);
+      sfxAbility();
+    }
+  }
+
+  function sendVfx(vfxType, x, y, color, facing, x2, y2){
+    if (!ws || ws.readyState !== 1) return;
+    const msg = {
+      type:"vfx", vfxType:vfxType,
+      x:Math.round(x), y:Math.round(y),
+      color:color||myColor, facing:facing||me.facing
+    };
+    if (x2 != null) msg.x2 = Math.round(x2);
+    if (y2 != null) msg.y2 = Math.round(y2);
+    ws.send(JSON.stringify(msg));
+  }
+
+  // ---------- Physics ----------
+  function aabbResolve(p){
+    p.onGround = false;
+    ability.onWall = false;
+    ability.wallDir = 0;
+    for (const plat of platforms){
+      const px1 = p.x - PLAYER_R, px2 = p.x + PLAYER_R;
+      const py1 = p.y - PLAYER_R, py2 = p.y + PLAYER_R;
+      const ox1 = plat.x, ox2 = plat.x + plat.w;
+      const oy1 = plat.y, oy2 = plat.y + plat.h;
+      if (px2 > ox1 && px1 < ox2 && py2 > oy1 && py1 < oy2){
+        const overlapX = Math.min(px2, ox2) - Math.max(px1, ox1);
+        const overlapY = Math.min(py2, oy2) - Math.max(py1, oy1);
+        if (overlapX < overlapY){
+          if (p.x < plat.x + plat.w/2) { p.x -= overlapX; ability.wallDir = -1; }
+          else { p.x += overlapX; ability.wallDir = 1; }
+          p.vx = 0;
+          ability.onWall = true;
+        } else {
+          if (p.y < plat.y + plat.h/2) { p.y -= overlapY; p.vy = 0; p.onGround = true; }
+          else { p.y += overlapY; p.vy = 0; }
+        }
+      }
+    }
+  }
+
+  function stepPhysics(){
+    const cls = CLASSES[myClass] || CLASSES[DEFAULT_CLASS];
+    const moveAcc = MOVE_ACC * cls.moveMult;
+    const maxVx = MAX_VX * cls.moveMult;
+    const jumpV = JUMP_V * cls.jumpMult;
+
+    if (keys.left) me.vx -= moveAcc;
+    if (keys.right) me.vx += moveAcc;
+    if (!keys.left && !keys.right) me.vx *= FRICTION;
+    me.vx = Math.max(-maxVx, Math.min(maxVx, me.vx));
+    if (Math.abs(me.vx) > 0.05) me.facing = me.vx > 0 ? 1 : -1;
+
+    const prevVy = me.vy;
+    const now = Date.now();
+    const isSlowed = now < ability.slowedUntil;
+    const speedFactor = isSlowed ? 0.45 : 1.0;
+
+    // Wall jump while clinging
+    if (keys.jump && me.onGround){
+      me.vy = jumpV; me.onGround = false;
+      spawnJumpDust(me.x, me.y);
+      sfxJump();
+    } else if (keys.jump && ability.onWall && now < ability.clingUntil){
+      me.vy = jumpV * 0.95;
+      me.vx = -ability.wallDir * maxVx * 1.1;
+      me.facing = -ability.wallDir;
+      ability.onWall = false;
+      spawnJumpVFX(me.x, me.y, myColor);
+      sfxJump();
+    }
+
+    me.vy += GRAVITY;
+    // glide
+    if (now < ability.glideUntil && me.vy > 1){
+      me.vy = Math.min(me.vy, 2.5);
+      if (Math.random() < 0.5){
+        addParticle({
+          x:me.x + (Math.random()-0.5)*16, y:me.y + PLAYER_R,
+          vx:(Math.random()-0.5)*1, vy:0.5+Math.random(),
+          life:300, color:'rgba(255,210,120,0.3)', size:1+Math.random(),
+          type:"circle", gravity:0.05,
+        });
+      }
+    }
+    // wall cling: stick and slow fall
+    if (now < ability.clingUntil && ability.onWall && !me.onGround){
+      me.vy = Math.min(me.vy, 1.2);
+      me.vx = 0;
+      if (Math.random() < 0.3){
+        addParticle({
+          x:me.x + ability.wallDir * PLAYER_R, y:me.y + (Math.random()-0.5)*12,
+          vx:ability.wallDir * 0.5, vy:(Math.random()-0.5),
+          life:250, color:'#7ee787', size:1.5, type:"circle", gravity:0.05
+        });
+      }
+    }
+    // pound dive already sets high vy; keep it going until land
+    if (ability.poundActive){
+      me.vy = Math.max(me.vy, 14);
+    }
+    me.vy = Math.min(me.vy, 18);
+
+    // apply movement with possible slow
+    me.vx *= (isSlowed ? 0.92 : 1); // extra drag when slowed
+    me.x += me.vx * speedFactor;
+    me.y += me.vy;
+
+    if (now < ability.dashUntil){
+      me.x += ability.dashVx;
+      ability.dashVx *= 0.88;
+      dashTrail.push({ x:me.x, y:me.y, t:now, color:myColor });
+      if (Math.random() < 0.6){
+        addParticle({
+          x:me.x, y:me.y,
+          vx:-me.facing*1.5+(Math.random()-0.5)*2,
+          vy:(Math.random()-0.5)*2,
+          life:300, color:myColor, size:2, type:"circle", gravity:0,
+        });
+      }
+    }
+
+    me.x = Math.max(PLAYER_R+16, Math.min(W-PLAYER_R-16, me.x));
+    me.y = Math.max(PLAYER_R+16, Math.min(H-PLAYER_R-16, me.y));
+
+    spawnWindTrail(me.x, me.y, me.vx, me.facing, myColor);
+
+    aabbResolve(me);
+
+    // Pound land shockwave
+    if (ability.poundActive && me.onGround){
+      ability.poundActive = false;
+      spawnPoundLandVFX(me.x, me.y);
+      sendVfx("poundLand", me.x, me.y);
+      sfxTag();
+    }
+
+    if (me.onGround && prevVy > 8){ spawnLandDust(me.x, me.y); sfxLand(); }
+    if (me.onGround) ability.doubleJumpUsed = false;
+  }
+
+  // ---------- WebSocket networking ----------
+  let ws = null;
+  let wasConnected = false;
+
+  function buildWsUrl(){
+    // Default: same host, dedicated WS port 8001 (used by server.py)
+    // When deployed behind a reverse proxy you can change this.
+    const host = location.hostname || "localhost";
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    // Prefer explicit port so local + remote both work cleanly
+    return `${protocol}//${host}:8001`;
+  }
+
+  function initSocket(){
+    const url = buildWsUrl();
+    try { ws = new WebSocket(url); } catch(e){ ws = null; }
+    if (!ws){
+      setStatus("Offline practice mode (server unavailable)");
+      return;
+    }
+
+    ws.onopen = ()=>{
+      wasConnected = true;
+      setStatus("Connected — waiting for players");
+      if (joined || pendingJoin){
+        pendingJoin = false;
+        sendJoin();
+      }
+    };
+
+    ws.onclose = ()=>{
+      if (joined && wasConnected){
+        setStatus("Reconnecting…");
+        setTimeout(()=>{ if (joined) initSocket(); }, 2000);
+      } else {
+        setStatus("Offline practice mode (server unavailable)");
+      }
+    };
+
+    ws.onerror = ()=>{ /* onclose will fire */ };
+
+    ws.onmessage = (e)=>{
+      let msg;
+      try { msg = JSON.parse(e.data); } catch { return; }
+      handleMessage(msg);
+    };
+  }
+
+  function handleMessage(msg){
+    switch (msg.type){
+      case "presence":
+        remotes.set(msg.id, {
+          x:msg.x, y:msg.y, name:msg.name, color:msg.color,
+          it:msg.it, cls:msg.cls, immuneUntil:msg.immuneUntil||0,
+          phaseUntil:msg.phaseUntil||0, glideUntil:msg.glideUntil||0,
+          updatedAt:Date.now()
+        });
+        renderPeerChips();
+        updateCounts();
+        break;
+      case "tagged":{
+        const oldIt = iAmIt;
+        itHolder = msg.newIt;
+        iAmIt = (itHolder === myId);
+        if (iAmIt && !oldIt){
+          const cls = CLASSES[myClass] || CLASSES[DEFAULT_CLASS];
+          myImmuneUntil = Date.now() + cls.immunityMs;
+          spawnItVFX(me.x, me.y);
+          sfxIt();
+          showToast("🔴 You're IT!");
+        }
+        if (msg.taggerId === myId){
+          addXp(XP_PER_TAG);
+          progress.tags = (progress.tags || 0) + 1;
+          saveProgress();
+          const tc = document.getElementById("tagCount");
+          if (tc) tc.textContent = "Tags: " + progress.tags;
+          sfxTag();
+          showToast("Tag! +" + XP_PER_TAG + " XP");
+        } else if (msg.tagX != null && msg.tagY != null){
+          spawnTagVFX(msg.tagX, msg.tagY);
+          sfxTag();
+        }
+        updateStatus();
+        break;
+      }
+      case "leave":
+        remotes.delete(msg.id);
+        renderPeerChips();
+        updateCounts();
+        break;
+      case "vfx":
+        handleRemoteVfx(msg);
+        break;
+    }
+  }
+
+  function handleRemoteVfx(msg){
+    if (msg.vfxType === "dash") spawnDashVFX(msg.x, msg.y, msg.color, msg.facing);
+    else if (msg.vfxType === "jump") spawnJumpVFX(msg.x, msg.y, msg.color);
+    else if (msg.vfxType === "shield") spawnShieldVFX(msg.x, msg.y);
+    else if (msg.vfxType === "phase") spawnPhaseVFX(msg.x, msg.y);
+    else if (msg.vfxType === "glide") spawnGlideVFX(msg.x, msg.y);
+    else if (msg.vfxType === "blast"){
+      spawnBlastVFX(msg.x, msg.y);
+      const dx = me.x - msg.x, dy = me.y - msg.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 140 && dist > 0.1){
+        const force = (1 - dist / 140) * 17;
+        me.vx += (dx / dist) * force;
+        me.vy += (dy / dist) * force - 2;
+      }
+    }
+    else if (msg.vfxType === "blink") spawnBlinkVFX(msg.x, msg.y, msg.x2 || msg.x, msg.y2 || msg.y);
+    else if (msg.vfxType === "cling") spawnClingVFX(msg.x, msg.y);
+    else if (msg.vfxType === "magnet"){
+      spawnMagnetVFX(msg.x, msg.y);
+      // Pull local player toward magnet center
+      const dx = msg.x - me.x, dy = msg.y - me.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 160 && dist > 8){
+        const force = (1 - dist / 160) * 9;
+        me.vx += (dx / dist) * force;
+        me.vy += (dy / dist) * force * 0.6;
+      }
+    }
+    else if (msg.vfxType === "frost"){
+      spawnFrostVFX(msg.x, msg.y);
+      const dx = me.x - msg.x, dy = me.y - msg.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 150){
+        ability.slowedUntil = Date.now() + 2200;
+      }
+    }
+    else if (msg.vfxType === "poundStart") spawnPoundStartVFX(msg.x, msg.y);
+    else if (msg.vfxType === "poundLand"){
+      spawnPoundLandVFX(msg.x, msg.y);
+      const dx = me.x - msg.x, dy = me.y - msg.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 120 && dist > 0.1){
+        const force = (1 - dist / 120) * 14;
+        me.vx += (dx / dist) * force;
+        me.vy += -Math.abs((dy / dist) * force) - 3;
+      }
+    }
+  }
+
+  function sendJoin(){
+    if (!ws || ws.readyState !== 1) return;
+    ws.send(JSON.stringify({
+      type:"join", id:myId, name:myName, color:myColor,
+      x:Math.round(me.x), y:Math.round(me.y), cls:myClass
+    }));
+    broadcastPresence();
+    updateStatus();
+  }
+
+  function broadcastPresence(){
+    if (!ws || ws.readyState !== 1 || !joined) return;
+    ws.send(JSON.stringify({
+      type:"presence", id:myId,
+      x:Math.round(me.x), y:Math.round(me.y),
+      name:myName||"Player", color:myColor,
+      it:iAmIt, cls:myClass, immuneUntil:myImmuneUntil,
+      phaseUntil:ability.phaseUntil, glideUntil:ability.glideUntil
+    }));
+  }
+
+  function cleanupStaleRemotes(){
+    const now = Date.now();
+    for (const [id, r] of remotes){
+      if (now - r.updatedAt > 6000){
+        remotes.delete(id);
+        renderPeerChips();
+        updateCounts();
+      }
+    }
+  }
+
+  function tryTag(){
+    if (!iAmIt || !ws || ws.readyState !== 1) return;
+    const now = Date.now();
+    if (now - lastTagAt < TAG_COOLDOWN_MS) return;
+    for (const [id, r] of remotes){
+      if (r.immuneUntil && now < r.immuneUntil) continue;
+      const dx = me.x - r.x, dy = me.y - r.y;
+      if (Math.hypot(dx,dy) < TAG_DIST){
+        lastTagAt = now;
+        const tagX = (me.x + r.x) / 2;
+        const tagY = (me.y + r.y) / 2;
+        ws.send(JSON.stringify({
+          type:"tag", targetId:id, tagX:Math.round(tagX), tagY:Math.round(tagY)
+        }));
+        spawnTagVFX(tagX, tagY); // optimistic local VFX
+        sfxTag();
+        break;
+      }
+    }
+  }
+
+  // ---------- Rendering ----------
+  function drawPlayer(x,y,color,isIt,name,facing,cls,immune,phased,gliding){
+    const now = Date.now();
+    // glide visual — parachute-like aura
+    if (gliding){
+      ctx.strokeStyle = 'rgba(255,210,120,0.4)';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(x, y - PLAYER_R - 4, PLAYER_R + 6, Math.PI, 0);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // "it" pulsing aura
+    if (isIt){
+      const pulse = Math.sin(now * 0.008) * 0.3 + 0.7;
+      ctx.strokeStyle = "#ff5470";
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = pulse * 0.5;
+      ctx.beginPath();
+      ctx.arc(x, y, PLAYER_R + 6 + pulse * 3, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // shield / immunity aura
+    if (immune){
+      const pulse = Math.sin(now * 0.01) * 0.2 + 0.8;
+      ctx.strokeStyle = "#5eead4";
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = pulse * 0.6;
+      ctx.beginPath();
+      ctx.arc(x, y, PLAYER_R + 8, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // body
+    ctx.save();
+    if (isIt){
+      ctx.shadowColor = "#ff5470";
+      ctx.shadowBlur = 18;
+    }
+    if (immune){
+      ctx.shadowColor = "#5eead4";
+      ctx.shadowBlur = 14;
+    }
+    ctx.beginPath();
+    ctx.arc(x,y,PLAYER_R,0,Math.PI*2);
+    ctx.fillStyle = isIt ? "#ff5470" : color;
+    ctx.globalAlpha = immune ? 0.6 : 1;
+    if (phased) ctx.globalAlpha = Math.min(ctx.globalAlpha, 0.3);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // eyes
+    ctx.fillStyle = "#0f1117";
+    const eyeOff = (facing||1) * 4;
+    ctx.beginPath();
+    ctx.arc(x+eyeOff-2, y-3, 2.2, 0, Math.PI*2);
+    ctx.arc(x+eyeOff+4, y-3, 2.2, 0, Math.PI*2);
+    ctx.fill();
+    // class icon badge
+    const info = CLASSES[cls] || CLASSES[DEFAULT_CLASS];
+    ctx.font = "11px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(info.icon, x + PLAYER_R - 4, y - PLAYER_R + 6);
+    // name tag with background pill for readability
+    ctx.font = "11px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    var nameW = ctx.measureText(name).width;
+    var pillX = x - nameW/2 - 5;
+    var pillY = y - PLAYER_R - 19;
+    var pillW = nameW + 10;
+    var pillH = 14;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.beginPath();
+    ctx.moveTo(pillX+7, pillY);
+    ctx.arcTo(pillX+pillW, pillY, pillX+pillW, pillY+pillH, 7);
+    ctx.arcTo(pillX+pillW, pillY+pillH, pillX, pillY+pillH, 7);
+    ctx.arcTo(pillX, pillY+pillH, pillX, pillY, 7);
+    ctx.arcTo(pillX, pillY, pillX+pillW, pillY, 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillText(name, x, y - PLAYER_R - 8);
+  }
+
+  function render(){
+    const now = Date.now();
+    // background (no shake)
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--bg") || "#0f1117";
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,W,H);
+
+    ctx.save();
+    if (screenShake > 0){
+      ctx.translate(
+        (Math.random()-0.5)*screenShake,
+        (Math.random()-0.5)*screenShake
+      );
+    }
+
+    // platforms
+    ctx.fillStyle = "#3d4459";
+    for (const p of platforms){ ctx.fillRect(p.x, p.y, p.w, p.h); }
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    for (const p of platforms){ ctx.strokeRect(p.x+0.5, p.y+0.5, p.w-1, p.h-1); }
+
+    // ambient leaves drifting in wind (behind everything)
+    drawAmbientLeaves();
+
+    // particles behind players
+    drawParticles();
+    // dash trail
+    drawDashTrail();
+
+    // remotes
+    for (const [id, r] of remotes){
+      // wind trail behind fast remote players
+      if (r.prevX != null){
+        const dx = r.x - r.prevX;
+        if (Math.abs(dx) > 3){
+          const facing = dx > 0 ? 1 : -1;
+          spawnWindTrail(r.x, r.y, dx * 0.5, facing, r.color);
+        }
+      }
+      r.prevX = r.x;
+      drawPlayer(r.x, r.y, r.color, r.it, r.name, 1, r.cls, r.immuneUntil > now, r.phaseUntil > now, r.glideUntil > now);
+    }
+    // me
+    drawPlayer(me.x, me.y, myColor, iAmIt, myName || "You", me.facing, myClass, myImmuneUntil > now, ability.phaseUntil > now, ability.glideUntil > now);
+
+    // "it" ambient particles
+    if (iAmIt && Math.random() < 0.25){
+      const a = Math.random()*Math.PI*2;
+      const d = PLAYER_R + Math.random()*8;
+      addParticle({
+        x:me.x+Math.cos(a)*d, y:me.y+Math.sin(a)*d,
+        vx:Math.cos(a)*0.5, vy:Math.sin(a)*0.5-0.5,
+        life:500, color:"#ff5470", size:2, type:"circle", gravity:0,
+      });
+    }
+    for (const [id, r] of remotes){
+      if (r.it && Math.random() < 0.15){
+        const a = Math.random()*Math.PI*2;
+        const d = PLAYER_R + Math.random()*8;
+        addParticle({
+          x:r.x+Math.cos(a)*d, y:r.y+Math.sin(a)*d,
+          vx:Math.cos(a)*0.5, vy:Math.sin(a)*0.5-0.5,
+          life:500, color:"#ff5470", size:2, type:"circle", gravity:0,
+        });
+      }
+    }
+
+    ctx.restore();
+  }
+
+  // ---------- Main loop ----------
+  function updateAbilityHud(){
+    const el = document.getElementById("abilityStatus");
+    const btn = document.getElementById("btnAbility");
+    if (!el || !joined) return;
+    const cls = CLASSES[myClass] || CLASSES[DEFAULT_CLASS];
+    const now = Date.now();
+    let status = "";
+    if (now < ability.slowedUntil){
+      status = `❄️ Slowed ${(Math.max(0,ability.slowedUntil-now)/1000).toFixed(1)}s · `;
+    }
+    if (cls.kind === "doublejump"){
+      status += ability.doubleJumpUsed ? `${cls.abilityName}: used` : `${cls.abilityName}: ready`;
+      if (btn) btn.style.setProperty("--cd", "0%");
+    } else if (cls.kind === "glide" || cls.kind === "cling" || cls.kind === "phase"){
+      const activeUntil = cls.kind === "glide" ? ability.glideUntil :
+                          cls.kind === "cling" ? ability.clingUntil : ability.phaseUntil;
+      const remainActive = Math.max(0, activeUntil - now);
+      const remainCd = Math.max(0, ability.cooldownUntil - now);
+      if (remainActive > 0) status += `${cls.abilityName}: active ${(remainActive/1000).toFixed(1)}s`;
+      else if (remainCd > 0) status += `${cls.abilityName}: ${(remainCd/1000).toFixed(1)}s`;
+      else status += `${cls.abilityName}: ready`;
+      if (btn){
+        const pct = cls.cooldownMs > 0 ? (remainCd / cls.cooldownMs) * 100 : 0;
+        btn.style.setProperty("--cd", pct + "%");
+      }
+    } else {
+      const remain = Math.max(0, ability.cooldownUntil - now);
+      status += remain > 0 ? `${cls.abilityName}: ${(remain/1000).toFixed(1)}s` : `${cls.abilityName}: ready`;
+      if (btn){
+        const pct = cls.cooldownMs > 0 ? (remain / cls.cooldownMs) * 100 : 0;
+        btn.style.setProperty("--cd", pct + "%");
+      }
+    }
+    el.textContent = status;
+  }
+
+  let lastT = 0;
+  function loop(t){
+    requestAnimationFrame(loop);
+    if (!joined) return;
+    const dt = Math.min(50, t - lastT || 16);
+    lastT = t;
+    updateWind(dt);
+    spawnAmbientWind();
+    stepPhysics();
+    updateParticles(dt);
+    cleanupStaleRemotes();
+    tryTag();
+    // broadcast presence every 2 frames (~30/s)
+    presenceAccum += 1;
+    if (presenceAccum % 2 === 0) broadcastPresence();
+    if (presenceAccum % 6 === 0) updateAbilityHud();
+    render();
+  }
+
+  // ---------- Class selection ----------
+  function renderClassCards(){
+    const row = document.getElementById("classRow");
+    const prevSelected = myClass;
+    row.innerHTML = "";
+    CLASS_ORDER.forEach(name=>{
+      const cls = CLASSES[name];
+      const unlocked = isUnlocked(name);
+      const card = document.createElement("div");
+      card.className = "classCard" + (unlocked ? "" : " locked") + (name === myClass ? " selected" : "");
+      card.dataset.class = name;
+      card.innerHTML = `
+        <div class="icon">${unlocked ? cls.icon : "🔒"}</div>
+        <div class="name">${cls.label}</div>
+        <div class="desc">${passiveDesc(name)}</div>
+        <div class="ability">★ ${cls.abilityName}: ${cls.abilityDesc}</div>
+        ${unlocked ? "" : `<div class="lockNote">Unlocks at ${cls.unlockXp} XP</div>`}
+      `;
+      if (unlocked){
+        card.addEventListener("click", ()=> selectClass(name));
+      }
+      row.appendChild(card);
+    });
+    if (!isUnlocked(prevSelected)) selectClass(DEFAULT_CLASS);
+  }
+  function passiveDesc(name){
+    if (name === "speedster") return "Fast run, weak jump";
+    if (name === "jumper") return "Big jumps, slow run";
+    if (name === "tank") return "Longer tag immunity";
+    if (name === "phantom") return "Balanced, tricky";
+    if (name === "glider") return "High jumps, slow";
+    if (name === "bomber") return "Average, disruptive";
+    if (name === "warper") return "Balanced, elusive";
+    if (name === "clinger") return "Wall specialist";
+    if (name === "magnet") return "Pulls others in";
+    if (name === "frost") return "Area control";
+    if (name === "pounder") return "Heavy impact";
+    return "";
+  }
+  function selectClass(name){
+    if (!isUnlocked(name)) return;
+    myClass = name;
+    Array.from(document.querySelectorAll(".classCard")).forEach(c =>
+      c.classList.toggle("selected", c.dataset.class === name));
+  }
+  renderClassCards();
+  updateXpUi();
+
+  // ---------- Peer list / counts ----------
+  function renderPeerChips(){
+    const list = document.getElementById("peerList");
+    list.innerHTML = "";
+    for (const [id, r] of remotes){
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = r.name;
+      list.appendChild(chip);
+    }
+  }
+  function updateCounts(){
+    const n = remotes.size + 1;
+    document.getElementById("peerCount").textContent = n + (n===1 ? " player" : " players");
+  }
+  function setStatus(text){
+    const el = document.getElementById("statusText");
+    el.textContent = text;
+    el.className = "status runner";
+  }
+  function updateStatus(){
+    const el = document.getElementById("statusText");
+    if (iAmIt){ el.textContent = "🔴 You're IT — tag someone!"; el.className = "status it"; }
+    else { el.textContent = "🔵 Run!"; el.className = "status runner"; }
+  }
+
+  let presenceAccum = 0;
+
+  // ---------- Menu navigation ----------
+  const menuMain = document.getElementById("menuMain");
+  const menuClass = document.getElementById("menuClass");
+  document.getElementById("playBtn").addEventListener("click", ()=>{
+    menuMain.hidden = true;
+    menuClass.hidden = false;
+    document.getElementById("nameInput").focus();
+  });
+  document.getElementById("backBtn").addEventListener("click", ()=>{
+    menuClass.hidden = true;
+    menuMain.hidden = false;
+  });
+
+  // ---------- Join flow ----------
+  document.getElementById("joinBtn").addEventListener("click", async ()=>{
+    const input = document.getElementById("nameInput");
+    myName = (input.value || "Player" + Math.floor(Math.random()*90+10)).trim().slice(0,16);
+    document.getElementById("overlay").style.display = "none";
+    joined = true;
+    progress.gamesPlayed = (progress.gamesPlayed || 0) + 1;
+    saveProgress();
+    const tc = document.getElementById("tagCount");
+    if (tc) tc.textContent = "Tags: " + (progress.tags || 0);
+    ensureAudio(); // unlock audio on user gesture
+    if (survivalTimer) clearInterval(survivalTimer);
+    survivalTimer = setInterval(()=>{
+      if (joined && !iAmIt) addXp(XP_PER_TICK);
+    }, SURVIVAL_TICK_MS);
+    if (ws){
+      if (ws.readyState === 1){
+        sendJoin();
+      } else if (ws.readyState === 0){
+        pendingJoin = true;
+      } else {
+        document.getElementById("statusText").textContent = "🔵 Practice mode — no other players yet";
+      }
+    } else {
+      document.getElementById("statusText").textContent = "🔵 Practice mode — no other players yet";
+    }
+  });
+  document.getElementById("nameInput").addEventListener("keydown", (e)=>{
+    if (e.key === "Enter") document.getElementById("joinBtn").click();
+  });
+
+  fitCanvas();
+  initSocket();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
